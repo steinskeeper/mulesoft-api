@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="1584ed8d-38c2-4fc8-ab32-738d8a256572" >
+		<mongo:connection-string-connection connectionString="addmongourl" />
+	</mongo:config>
+	<flow name="SignUP" doc:id="8c6d2060-f6a1-44fe-832b-cd702994995f">
+		<logger level="INFO" doc:name="Logger" doc:id="903d4d7f-7a44-448f-af31-eac65d78eb62" message="#[payload]"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="34f2c1e2-5399-4ba0-88d2-d0b6cc61286c" variableName="pay" />
+		<mongo:collection-exists collectionName="users" doc:name="Collection exists" doc:id="381db863-8ec7-46ee-8564-d425720f31e2" config-ref="MongoDB_Config" />
+		<choice doc:name="Choice" doc:id="6b214e67-8f54-4484-9d1b-0b5349084362">
+			<when expression="#[payload == true]">
+				<mongo:insert-document doc:name="Insert document" doc:id="3f90dcf0-5a60-4319-9f42-6663c7849af5" config-ref="MongoDB_Config" collectionName="users">
+					<mongo:document><![CDATA[#[vars.pay]]]></mongo:document>
+				</mongo:insert-document>
+			</when>
+			<otherwise>
+				<mongo:create-collection doc:name="Create collection" doc:id="4c79cbc3-8f0d-4778-94ee-75006b327de2" config-ref="MongoDB_Config" collectionName="users" />
+				<mongo:insert-document doc:name="Insert document" doc:id="8b590b37-5df5-4aab-a417-7494db5f680e" config-ref="MongoDB_Config" collectionName="users">
+					<mongo:document><![CDATA[#[vars.pay]]]></mongo:document>
+				</mongo:insert-document>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="SignIn" doc:id="f619073a-dc79-4b49-bf01-26212e99b720" >
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="8c0f0ced-96c6-48e3-8e8a-c80c3f9f39d5" variableName="info"/>
+		<mongo:find-documents collectionName="users" doc:name="Find documents" doc:id="c72480d6-b7ca-4391-89af-d32244034252" config-ref="MongoDB_Config" fields="username,listings">
+			<mongo:query ><![CDATA[#[%dw 2.0
+
+output application/json
+---
+{
+    "email": vars.info.email,
+    "password": vars.info.password
+}]]]></mongo:query>
+		</mongo:find-documents>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="ec5a5eb9-df75-4ead-8000-a9277529cd34" variableName="userdata"/>
+		<choice doc:name="Choice" doc:id="9016387e-f688-4102-a9ce-6cb9c7637fd6" >
+			<when expression="#[vars.userdata == []]">
+				<set-payload value="User not exist man" doc:name="Set Payload" doc:id="ca8aae07-9a9b-4be7-b21f-ac6207b7f44d" />
+			</when>
+			<otherwise >
+				<set-payload value="#[vars.userdata]" doc:name="Set Payload" doc:id="69e051bd-9547-49e8-bfb6-7304b58da3a4" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="CreateOrder" doc:id="042ed134-0042-4bc6-ae04-8049b9cb6e60">
+		<set-variable value="#[payload]" doc:name="Set Orders Variable" doc:id="f1c663f6-0fd2-4f32-bd12-ec39ef6fcdf8" variableName="pay" />
+		<mongo:collection-exists collectionName="orders" doc:name="Orders Collection exists" doc:id="8fdcd27b-20c9-482c-af31-a87e0d9718a1" config-ref="MongoDB_Config" />
+		<choice doc:name="Choice" doc:id="a83740c9-990e-4462-87f2-ae4d813a27b3">
+			<when expression="#[payload == true]">
+				<mongo:insert-document collectionName="orders" doc:name="Insert Order" doc:id="f80b1be1-db4f-4313-90dc-3c976066e345" config-ref="MongoDB_Config">
+					<mongo:document><![CDATA[#[%dw 2.0
+output application/json
+---
+{	
+	buyerid: vars.pay.buyerid,
+	sellerid: vars.pay.sellerid,
+	listingid: vars.pay.listingid,
+	status: "Awaiting"
+		}]]]></mongo:document>
+				</mongo:insert-document>
+			</when>
+			<otherwise>
+				<mongo:create-collection doc:name="Create Orders Collection" doc:id="2833bcd7-d443-4188-9c42-fa3a60b6aa61" config-ref="MongoDB_Config" collectionName="orders" />
+				<mongo:insert-document collectionName="orders" doc:name="Insert Order" doc:id="04b72203-ccc3-4b09-aa66-fd33507337c2" config-ref="MongoDB_Config">
+					<mongo:document><![CDATA[#[%dw 2.0
+output application/json
+---
+{	
+	buyerid: vars.pay.buyerid,
+	sellerid: vars.pay.sellerid,
+	listingid: vars.pay.listingid,
+	status: "Awaiting"
+		}]]]></mongo:document>
+				</mongo:insert-document>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="AwaitingOrders" doc:id="48dc0905-29a3-4adb-8d3e-20f49eb69378" >
+		<set-variable value="#[payload.sellerid]" doc:name="Set Variable" doc:id="9fa73657-e31e-46fe-8858-dba238c54619" variableName="sellerid"/>
+		<mongo:find-documents collectionName="orders" doc:name="Find documents" doc:id="dbc0bd97-094a-4ad3-971e-3416f15bd68e" config-ref="MongoDB_Config" fields="buyerid,sellerid,listingid,status">
+			<mongo:query ><![CDATA[#[%dw 2.0
+
+output application/json
+---
+{
+    "sellerid": vars.sellerid
+}]]]></mongo:query>
+		</mongo:find-documents>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="d9fd2a44-210c-4b44-b295-f2aaa3deb3b9" variableName="orderdata"/>
+		<foreach doc:name="For Each" doc:id="76d53904-b0db-4134-b495-941823b1a3dc" collection="#[vars.orderdata]">
+			<mongo:find-documents collectionName="users" doc:name="Find documents" doc:id="e14cee88-65db-4415-a9a4-50902d717d80" config-ref="MongoDB_Config" fields="avatarURL,username">
+			<mongo:query><![CDATA[#[%dw 2.0
+
+output application/json
+---
+{
+    "_id" : {"\$oid" : vars.orderdata[0].buyerid }
+}]]]></mongo:query>
+		</mongo:find-documents>
+			<set-variable value="#[payload]" doc:name="Set Variable" doc:id="7910da32-3d61-44ab-b6ff-a7e24a8c7079" variableName="buyerdata" />
+		</foreach>
+		<ee:transform doc:name="Transform Message" doc:id="f5e2e8ad-6da6-4c9c-9fa7-17643c6fca2f">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	
+	result: vars.buyerdata
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="whatFlow1" doc:id="46d598d5-e40e-444a-968c-27d1e886ec73" >
+		<mongo:execute-command doc:name="Execute command" doc:id="0df3ee47-87ff-4c30-af66-a110906453c9" config-ref="MongoDB_Config">
+			<mongo:command><![CDATA[#[{
+	"find": "users",
+	"filter":{
+		 "_id" : {"\$oid" : vars.sellerid}
+		
+	},
+	"projection":{
+		"listings":{
+			"\$elemMatch":{
+				"id" : vars.orderdata[vars.counter].listingid
+			}
+		}
+	}
+}]]]></mongo:command>
+		</mongo:execute-command>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="e7793ef9-4e45-4092-a6e4-b57f2ab4b08c" variableName="result" />
+	</flow>
+	<flow name="GetoneListing" doc:id="22e71187-b8b8-4f30-9c2e-b0c869ca48a7" >
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="17719aca-1c96-4ec5-b98c-8a9a8d35828a" variableName="id"/>
+		<mongo:execute-command doc:name="Execute command" doc:id="c2c1925f-0616-40e7-837f-9686f3b3113c" config-ref="MongoDB_Config">
+			<mongo:command ><![CDATA[#[{
+	"find": "users",
+	"filter":{
+		 "_id" : {"\$oid" : vars.id.userid}
+		
+	},
+	"projection":{
+		"listings":{
+			"\$elemMatch":{
+				"id" : vars.id.listingid
+			}
+		}
+	}
+}]]]></mongo:command>
+		</mongo:execute-command>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="4f4a5b26-c184-426e-81ba-2b8ce4c4edfd" variableName="result"/>
+		<logger level="INFO" doc:name="Logger" doc:id="74326950-1f0f-4e86-9f5a-0934c8435a1a" message="#[vars.result]" />
+		<mongo:find-documents collectionName="users" doc:name="Find documents" doc:id="39a493b0-946e-43b3-8c18-fc0f29321e02" config-ref="MongoDB_Config" fields="avatarURL,username,location,story">
+			<mongo:query ><![CDATA[#[%dw 2.0
+
+output application/json
+---
+{
+    "_id" : {"\$oid" : vars.id.userid}
+}]]]></mongo:query>
+		</mongo:find-documents>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="0dd6caa8-bbe7-4648-82ab-d6a576b7d302" variableName="userdata" />
+		<logger level="INFO" doc:name="Logger" doc:id="5bdfb53f-b1a1-4be9-a54f-cc21e994b74b" message="#[vars.userdata]" />
+		<ee:transform doc:name="Transform Message" doc:id="27567aa9-86ba-49fb-8a47-a470c4275bef" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{		
+id: vars.result.cursor.firstBatch[0].listings[0].id,
+oname: vars.result.cursor.firstBatch[0].listings[0].oname,
+odesc: vars.result.cursor.firstBatch[0].listings[0].odesc,
+oprice: vars.result.cursor.firstBatch[0].listings[0].oprice,
+opic: vars.result.cursor.firstBatch[0].listings[0].opic,
+seller: vars.userdata
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="GetListings" doc:id="b396ba58-37f6-4b7f-8b01-272b95ec9dba" >
+		<mongo:find-documents doc:name="Find documents" doc:id="f33dc577-99e7-4ec6-9444-eb6b4f20d865" config-ref="MongoDB_Config" collectionName="users" fields="listings">
+			<mongo:query ><![CDATA[#[%dw 2.0
+
+output application/json
+---
+{
+    "_id" : {"\$oid" : payload.userid}
+}]]]></mongo:query>
+		</mongo:find-documents>
+	</flow>
+	<flow name="Home" doc:id="060b0368-c91b-49e3-911b-422243ce94a5" >
+		<logger level="INFO" doc:name="Logger" doc:id="82123983-96da-4b5c-9c5e-cf138019fb2a" message="#[payload]"/>
+		<set-variable value="#[payload.userid]" doc:name="Set Variable" doc:id="f60629bc-5cec-44cf-8657-f4a871707d88" variableName="userid"/>
+		<mongo:find-documents collectionName="users" fields="username,listings,avatarURL" doc:name="Find documents" doc:id="f6325290-49d4-491d-ac54-369823283d9e" config-ref="MongoDB_Config"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="bf13954b-fe08-46d0-8699-445fdea7b64c" variableName="listings"/>
+		<mongo:find-documents collectionName="users" fields="username" doc:name="Find documents" doc:id="cc5035c5-fa0a-465f-94da-aa49762fcd99" config-ref="MongoDB_Config">
+			<mongo:query ><![CDATA[#[%dw 2.0
+
+output application/json
+---
+{
+    "_id" : {"\$oid" : vars.userid}
+}]]]></mongo:query>
+		</mongo:find-documents>
+		<set-variable value="#[payload.username]" doc:name="Set Variable" doc:id="ff939771-e302-4f74-8663-c8d6c63db7d0" variableName="nam"/>
+		<ee:transform doc:name="Transform Message" doc:id="4ebdf24a-41c5-45da-b134-f7cae6709333" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+
+output application/java
+
+---
+{
+	username: vars.nam[0],
+	recentOfferings: vars.listings
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="GetProfile" doc:id="bc5fe6a4-b3f5-41c4-b574-ff346054c5e9" >
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="61673dd9-1965-430b-a5aa-b3c698973280" variableName="data"/>
+		<mongo:find-documents doc:name="Find documents" doc:id="85f067ea-8f32-4d88-a4fe-1574dbe308c5" config-ref="MongoDB_Config" collectionName="users" fields="avatarURL,username,location,story">
+			<mongo:query ><![CDATA[#[%dw 2.0
+
+output application/json
+---
+{
+    "_id" : {"\$oid" : payload.requserid}
+}]]]></mongo:query>
+		</mongo:find-documents>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="df0f577f-d0a6-4f53-a2a9-a36fe5852f5f" variableName="userdata"/>
+		<choice doc:name="Choice" doc:id="e3069a25-5a39-46e5-8d2c-631599926624" >
+			<when expression="#[vars.data.userid == vars.data.requserid]">
+				<ee:transform doc:name="Transform Message" doc:id="ce4904b5-31ac-4e87-8635-dfa6847d1fd0" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	avatarURL: vars.userdata.avatarURL[0],
+	username: vars.userdata.username[0],
+	location: vars.userdata.location[0],
+	story: vars.userdata.story[0],
+	isAdmin: true
+	}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="a24a8ff9-d86a-47a9-a2a7-d96a58b36d90" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	avatarURL: vars.userdata.avatarURL[0],
+	username: vars.userdata.username[0],
+	location: vars.userdata.location[0],
+	story: vars.userdata.story[0],
+	isAdmin: false
+	}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="add-Listing" doc:id="745a5136-d599-4c89-91e9-764e44b3bb5a" >
+		<ee:transform doc:name="Transform Message" doc:id="732fba23-81c2-4f54-923c-827904251202" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="b6939506-001d-4ce5-9332-2513cfab04b2" message="#[payload]"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="f0124971-978a-4e65-adf5-4c9485aa473b" variableName="item" />
+		<mongo:execute-command doc:name="Execute command" doc:id="1ff8b962-c370-451d-a0af-d5803f6ad9eb" config-ref="MongoDB_Config">
+			<mongo:command ><![CDATA[#[{
+	update: "users",
+	updates:[
+		{
+			q:{ "_id" : {"\$oid" : vars.item.userid}},
+			u:{ "\$push":{"listings":vars.item.listing}
+			}
+			}
+
+	]
+}]]]></mongo:command>
+		</mongo:execute-command>
+		<logger level="INFO" doc:name="Logger" doc:id="1af51308-0527-4130-b6b1-90132fe9dfa0" message="#[payload]"/>
+	</flow>
+	<flow name="orderstatus" doc:id="27779eb6-6b92-4523-9d3f-201dd88d48c0" >
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="72966291-d009-4100-84e0-bfd80600ae9c" />
+	</flow>
+	<flow name="whatFlow" doc:id="e141c199-5e9b-4143-bcb7-9b74d35e69ef" >
+		<set-payload value='#[%dw 2.0
+&#10;output application/json
+&#10;---
+&#10;{
+&#10;	"hello": "world"
+&#10;}]' doc:name="Set Payload" doc:id="9f353a68-9313-4ae7-95ff-d5153f1eb256" />
+	</flow>
+</mule>

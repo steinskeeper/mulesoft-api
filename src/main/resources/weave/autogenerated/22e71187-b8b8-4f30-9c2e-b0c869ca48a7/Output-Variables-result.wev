@@ -1,0 +1,29 @@
+%dw 2.0
+
+type auto_22e71187_b8b8_4f30_9c2e_b0c869ca48a7_Output_Variables_result = {|
+  ok?: Number, 
+  operationTime?: {|
+    "$timestamp"?: {|
+      t?: Number, 
+      i?: Number
+    |}
+  |}, 
+  "$clusterTime"?: {|
+    clusterTime?: {|
+      "$timestamp"?: {|
+        t?: Number, 
+        i?: Number
+      |}
+    |}, 
+    signature?: {|
+      hash?: {|
+        "$binary"?: {|
+          base64?: String, 
+          subType?: String
+        |}
+      |}, 
+      keyId?: Number
+    |}
+  |}
+|}
+

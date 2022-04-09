@@ -1,0 +1,16 @@
+%dw 2.0
+
+type auto_060b0368_c91b_49e3_911b_422243ce94a5_Output_Variables_listings = Array<Array<Document>>
+type Document = {|
+  "_id"?: {|  |}, 
+  username?: String, 
+  location?: String, 
+  skill?: String, 
+  email?: String, 
+  story?: String, 
+  password?: String, 
+  avatarURL?: String
+|} {"typeId": "Document"}
+
+
+
